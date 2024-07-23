@@ -49,9 +49,8 @@ let
       "\${qtWrapperArgs[@]}"
     ];
     unpackPhase = ":";
-
-    nativeBuildInputs = [
-      qt6Packages.wrapQtAppsHook
+    nativeBuildInputs = with qt6Packages; [
+      wrapQtAppsHook qtbase
     ];
 
     installPhase = ''
