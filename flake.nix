@@ -1,12 +1,12 @@
 {
   inputs = {
     flake-utils = {
-      url = github:numtide/flake-utils;
+      url = "github:numtide/flake-utils";
       inputs.systems.follows = "systems";
     };
 
     poetry2nix = {
-      url = github:nix-community/poetry2nix;
+      url = "github:nix-community/poetry2nix";
       inputs.flake-utils.follows = "flake-utils";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.nix-github-actions.follows = "nix-github-actions";
@@ -18,14 +18,14 @@
     # Unused but allows downstream to override versions and avoids duplicates
 
     nix-github-actions = {
-      url = github:nix-community/nix-github-actions;
+      url = "github:nix-community/nix-github-actions";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    systems.url = github:nix-systems/default;
+    systems.url = "github:nix-systems/default";
 
     treefmt-nix = {
-      url = github:numtide/treefmt-nix;
+      url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
