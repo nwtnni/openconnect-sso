@@ -40,7 +40,7 @@ let
     '';
   };
 
-  niv = if pkgs ? niv then pkgs.nim else pkgs.haskellPackages.niv;
+  niv = if pkgs ? niv then pkgs.niv else pkgs.haskellPackages.niv;
 
   qtwrapper = pkgs.stdenv.mkDerivation {
     name = "qtwrapper";
