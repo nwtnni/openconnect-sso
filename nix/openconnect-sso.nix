@@ -49,6 +49,7 @@ poetry2nix.mkPoetryApplication {
       self: super: {
         inherit (python3Packages)
           cryptography
+          lxml
           more-itertools
           pyqt6
           pyqt6-sip
