@@ -1,15 +1,14 @@
 import attr
 import requests
+import ssl
 import structlog
+import urllib3
 from lxml import etree, objectify
 
 from openconnect_sso.saml_authenticator import authenticate_in_browser
 
 
 logger = structlog.get_logger()
-
-# https://stackoverflow.com/questions/72479812/how-to-change-tweak-python-3-10-default-ssl-settings-for-requests-sslv3-alert
-requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS = 'ALL:@SECLEVEL=1'
 
 class Authenticator:
     def __init__(self, host, proxy=None, credentials=None, version=None):
@@ -57,17 +56,24 @@ class Authenticator:
     def _detect_authentication_target_url(self):
         # Follow possible redirects in a GET request
         # Authentication will occur using a POST request on the final URL
-        response = requests.get(self.host.vpn_url)
-        response.raise_for_status()
-        self.host.address = response.url
+
+        # https://github.com/jessecooper/pyetrade/issues/85
+        # https://github.com/psf/requests/issues/2118
+        # https://stackoverflow.com/questions/72479812/how-to-change-tweak-python-3-10-default-ssl-settings-for-requests-sslv3-alert
+        ctx = urllib3.util.create_urllib3_context()
+        ctx.load_default_certs()
+        ctx.set_ciphers("ALL:@SECLEVEL=1")
+        response = None
+        with urllib3.PoolManager(ssl_context=ctx) as pool:
+            response = pool.request("GET", self.host.vpn_url)
         logger.debug("Auth target url", url=self.host.vpn_url)
 
     def _start_authentication(self):
         request = _create_auth_init_request(self.host, self.host.vpn_url, self.version)
         logger.debug("Sending auth init request", content=request)
-        response = self.session.post(self.host.vpn_url, request)
-        logger.debug("Auth init response received", content=response.content)
-        return parse_response(response)
+        response = self.session.request("POST", self.host.vpn_url, body=request)
+        logger.debug("Auth init response received", content=response.data)
+        return parse_response(response.data)
 
     async def _authenticate_in_browser(self, auth_request_response, display_mode):
         return await authenticate_in_browser(
@@ -79,9 +85,9 @@ class Authenticator:
             self.host, auth_request_response, sso_token, self.version
         )
         logger.debug("Sending auth finish request", content=request)
-        response = self.session.post(self.host.vpn_url, request)
-        logger.debug("Auth finish response received", content=response.content)
-        return parse_response(response)
+        response = self.session.request("POST", self.host.vpn_url, body=request)
+        logger.debug("Auth finish response received", content=response.data)
+        return parse_response(response.data)
 
 
 class AuthenticationError(Exception):
@@ -93,10 +99,12 @@ class AuthResponseError(AuthenticationError):
 
 
 def create_http_session(proxy, version):
-    session = requests.Session()
-    session.proxies = {"http": proxy, "https": proxy}
-    session.headers.update(
-        {
+    assert(proxy is None)
+    ctx = urllib3.util.create_urllib3_context()
+    ctx.load_default_certs()
+    ctx.set_ciphers("ALL:@SECLEVEL=1")
+    session = urllib3.PoolManager(
+        headers={
             "User-Agent": f"AnyConnect Linux_64 {version}",
             "Accept": "*/*",
             "Accept-Encoding": "identity",
@@ -105,7 +113,8 @@ def create_http_session(proxy, version):
             "X-Support-HTTP-Auth": "true",
             "Content-Type": "application/x-www-form-urlencoded",
             # I know, it is invalid but that’s what Anyconnect sends
-        }
+        },
+        ssl_context=ctx,
     )
     return session
 
@@ -136,8 +145,8 @@ def _create_auth_init_request(host, url, version):
 
 
 def parse_response(resp):
-    resp.raise_for_status()
-    xml = objectify.fromstring(resp.content)
+    # resp.raise_for_status()
+    xml = objectify.fromstring(resp)
     t = xml.get("type")
     if t == "auth-request":
         return parse_auth_request_response(xml)
