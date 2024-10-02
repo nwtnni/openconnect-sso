@@ -55,7 +55,7 @@ class Authenticator:
     def _detect_authentication_target_url(self):
         # Follow possible redirects in a GET request
         # Authentication will occur using a POST request on the final URL
-        response = requests.get(self.host.vpn_url)
+        response = requests.get(self.host.vpn_url, verify=False)
         response.raise_for_status()
         self.host.address = response.url
         logger.debug("Auth target url", url=self.host.vpn_url)
@@ -92,6 +92,7 @@ class AuthResponseError(AuthenticationError):
 
 def create_http_session(proxy, version):
     session = requests.Session()
+    session.verify = False
     session.proxies = {"http": proxy, "https": proxy}
     session.headers.update(
         {
