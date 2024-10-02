@@ -8,6 +8,8 @@ from openconnect_sso.saml_authenticator import authenticate_in_browser
 
 logger = structlog.get_logger()
 
+# https://stackoverflow.com/questions/72479812/how-to-change-tweak-python-3-10-default-ssl-settings-for-requests-sslv3-alert
+requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS = 'ALL:@SECLEVEL=1'
 
 class Authenticator:
     def __init__(self, host, proxy=None, credentials=None, version=None):
@@ -55,7 +57,7 @@ class Authenticator:
     def _detect_authentication_target_url(self):
         # Follow possible redirects in a GET request
         # Authentication will occur using a POST request on the final URL
-        response = requests.get(self.host.vpn_url, verify=False)
+        response = requests.get(self.host.vpn_url)
         response.raise_for_status()
         self.host.address = response.url
         logger.debug("Auth target url", url=self.host.vpn_url)
@@ -92,7 +94,6 @@ class AuthResponseError(AuthenticationError):
 
 def create_http_session(proxy, version):
     session = requests.Session()
-    session.verify = False
     session.proxies = {"http": proxy, "https": proxy}
     session.headers.update(
         {
